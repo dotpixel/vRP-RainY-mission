@@ -6,6 +6,10 @@ local lang = {
   getin = "Get in car.",
   parkit = "Get car to parking.",
   parked = "Car successfully parked.",
-  nothat = "This is not that car."
+  nothat = "This is not that car.",
+  delivery = {
+    title = "Delivery",
+    item = "- {2} {1}"
+  }
 }
 return lang
