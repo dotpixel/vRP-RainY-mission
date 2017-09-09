@@ -27,6 +27,7 @@ function task_mission()
           local mdata = {}
           mdata.name = lang.park_title()
 
+          -- prepare vehicle spawn info
           local park_pos = v.park_pos
           local vehicle_hash = v.vehicles[math.random(1,#v.vehicles)]
           local vehicle_pos = v.positions[math.random(1,#v.positions)]
@@ -41,10 +42,6 @@ function task_mission()
               vRPclient.notify(player,{lang.getin()})
             end,
             onleave = function(player,area)
-              print("[TEST] check -" .. vehicle_plate .. "-");
-              vRPRMclient.GetVehiclePedIsInNumberPlateText(player,{},function(r)
-                print("[TEST] getpt -" .. r .. "-");
-              end)
               vRPRMclient.IsInVehicleWithPlate(player,{vehicle_plate},function(r)
                 if r then
                   vRPclient.notify(player,{lang.parkit()})
@@ -79,7 +76,7 @@ function task_mission()
     end
   end
 
-  SetTimeout(5000,task_mission)
+  SetTimeout(10000,task_mission)
 end
 
-SetTimeout(60000,task_mission)
+SetTimeout(90000,task_mission)
