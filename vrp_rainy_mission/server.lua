@@ -12,14 +12,15 @@ vRPclient = Tunnel.getInterface("vRP", "vRP_rainy_mission")
 
 -- RESOURCE
 vRPRMclient = Tunnel.getInterface("vRP_rainy_mission", "vRP_rainy_mission")
+local clientFuncProcessing = false
 
 function task_mission()
-
+    
     -- EMERGENCY: DELIVERY MISSIONS
     for k, v in pairs(cfg.emergency_delivery) do -- each emergency perm def
         -- add missions to users
-        --local users = vRP.getUsersByPermission({k})
-        local users = vRP.getUsersByGroup({"police"}) -- TEST
+        local users = vRP.getUsersByPermission({k})
+        --local users = vRP.getUsersByGroup({"police"}) -- TEST
         for l, w in pairs(users) do
             local user_id = w
             local player = vRP.getUserSource({user_id})
@@ -82,8 +83,8 @@ function task_mission()
     -- POLICE: VEHICLE PARK MISSIONS
     for k, v in pairs(cfg.police_park) do -- each police perm def
         -- add missions to users
-        local users = vRP.getUsersByPermission({k})
-        --local users = vRP.getUsersByGroup({"police"}) -- TEST
+        --local users = vRP.getUsersByPermission({k})
+        local users = vRP.getUsersByGroup({"police"}) -- TEST
         for l, w in pairs(users) do
             local user_id = w
             local player = vRP.getUserSource({user_id})
@@ -96,63 +97,96 @@ function task_mission()
                     -- prepare vehicle spawn info
                     local park_pos = v.park_pos
                     local vehicle_hash = v.vehicles[math.random(1, #v.vehicles)]
-                    local vehicle_pos = v.positions[math.random(1, #v.positions)]
+                    local vehicle_pos = {}
                     local vehicle_plate = ""
-                    vRPRMclient.SpawnVehicle(
-                        player,
-                        {vehicle_hash, vehicle_pos},
-                        function(r)
-                            vehicle_plate = r
-                        end
-                    ) -- spawn vehicle
 
-                    mdata.steps = {}
-                    -- two hardcoded steps:
-                    local stepOne = {
-                        -- get vehicle
-                        text = lang.park_text1(),
-                        onenter = function(player, area)
-                            vRPclient.notify(player, {lang.getin()})
-                        end,
-                        onleave = function(player, area)
-                            vRPRMclient.IsInVehicleWithPlate(
-                                player,
-                                {vehicle_plate},
-                                function(r)
-                                    if r then
-                                        vRPclient.notify(player, {lang.parkit()})
-                                        vRP.nextMissionStep({player})
+                    local function BuildSteps()
+                        mdata.steps = {}
+                        -- two hardcoded steps:
+                        local stepOne = {
+                            -- get vehicle
+                            text = lang.park_text1(),
+                            onenter = function(player, area)
+                                vRPclient.notify(player, {lang.getin()})
+                            end,
+                            onleave = function(player, area)
+                                vRPRMclient.IsInVehicleWithPlate(
+                                    player,
+                                    {vehicle_plate},
+                                    function(r)
+                                        if r then
+                                            vRPclient.notify(player, {lang.parkit()})
+                                            vRP.nextMissionStep({player})
+                                        end
                                     end
-                                end
-                            )
-                        end,
-                        position = vehicle_pos
-                    }
-                    table.insert(mdata.steps, stepOne)
-                    local stepTwo = {
-                        -- park vehicle
-                        text = lang.park_text2(),
-                        onenter = function(player, area)
-                            vRPRMclient.IsInVehicleWithPlate(
-                                player,
-                                {vehicle_plate},
-                                function(r)
-                                    if r then
-                                        vRP.nextMissionStep({player})
-                                        vRP.giveMoney({user_id, v.reward})
-                                        vRPRMclient.DeleteVehiclePedIsIn(player, {})
-                                        vRPclient.notify(player, {lang.parked() .. " " .. lang.reward({v.reward})})
-                                    else
-                                        vRPclient.notify(player, {lang.nothat()})
+                                )
+                            end,
+                            position = vehicle_pos
+                        }
+                        table.insert(mdata.steps, stepOne)
+                        local stepTwo = {
+                            -- park vehicle
+                            text = lang.park_text2(),
+                            onenter = function(player, area)
+                                vRPRMclient.IsInVehicleWithPlate(
+                                    player,
+                                    {vehicle_plate},
+                                    function(r)
+                                        if r then
+                                            vRP.nextMissionStep({player})
+                                            vRP.giveMoney({user_id, v.reward})
+                                            vRPRMclient.DeleteVehiclePedIsIn(player, {})
+                                            vRPclient.notify(player, {lang.parked() .. " " .. lang.reward({v.reward})})
+                                        else
+                                            vRPclient.notify(player, {lang.nothat()})
+                                        end
                                     end
-                                end
-                            )
-                        end,
-                        position = park_pos
-                    }
-                    table.insert(mdata.steps, stepTwo)
+                                )
+                            end,
+                            position = park_pos
+                        }
+                        table.insert(mdata.steps, stepTwo)
+                    end
 
-                    vRP.startMission({player, mdata})
+                    local function StartMission()
+                        -- finaly start mission
+                        vRP.startMission({player, mdata})
+                    end
+
+                    local function ContinueBuildMission()
+                        -- spawn vehicle, build steps and start mission
+                        vRPRMclient.SpawnVehicle(
+                            player,
+                            {vehicle_hash, vehicle_pos},
+                            function(r)
+                                vehicle_plate = r
+                                BuildSteps()
+                                StartMission()
+                            end
+                        ) -- spawn vehicle
+                    end
+
+                    local function CheckPosition()
+                        -- check position and continue build mission if it's free
+                        local check_pos = v.positions[math.random(1, #v.positions)]
+                        clientFuncProcessing = true
+                        vRPRMclient.HaveVehicleAtPos(
+                            player,
+                            {check_pos, 3},
+                            function(r)
+                                clientFuncProcessing = false
+                                if not r then
+                                    -- free pos found continue build mission
+                                    vehicle_pos = check_pos
+                                    ContinueBuildMission()
+                                end
+                            end
+                        ) -- check position
+                    end
+
+                    if not clientFuncProcessing then
+                        CheckPosition()
+                    end
                 end
             end
         end
@@ -161,4 +195,4 @@ function task_mission()
     SetTimeout(10000, task_mission)
 end
 
-SetTimeout(90000, task_mission)
+SetTimeout(60000, task_mission)

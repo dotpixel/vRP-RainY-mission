@@ -80,3 +80,14 @@ function vRPrm.DeleteVehiclePedIsIn()
         Citizen.InvokeNative(0xEA386986E786A54F, Citizen.PointerValueIntInitialized(v))
     end
 end
+
+function vRPrm.HaveVehicleAtPos(pos, radius)
+    local x,y,z = table.unpack(pos)
+    local v = GetClosestVehicle(x+0.0001, y+0.0001, z+0.0001,radius+0.00001,0,70)
+    if v ~= nil then
+        local vx,vy,vz = GetEntityCoords(v,true)
+        local d = GetDistanceBetweenCoords(x,y,z,vx,vy,vz,true)
+        return d < radius
+    end
+    return false
+end
